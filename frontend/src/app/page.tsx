@@ -8,16 +8,14 @@ type Debate = {
   creator_position: string; opponent_position: string; arguments: { author: string; text: string; round: number }[];
   max_rounds: number; current_round: number; status: number; winner: string; judgment: string;
 };
-
 const STATUS = ["OPEN", "LIVE", "JUDGING", "DECIDED"];
-const SCOLOR = ["#22c55e", "#a855f7", "#f59e0b", "#ec4899"];
 
 export default function Home() {
   const [wallet, setWallet] = useState<WalletState>({ address: null, client: null });
   const [debates, setDebates] = useState<Debate[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<"browse" | "create">("browse");
   const [selected, setSelected] = useState<Debate | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ topic: "", position: "", stake: "", rounds: "3" });
   const [joinPos, setJoinPos] = useState("");
   const [argument, setArgument] = useState("");
@@ -28,144 +26,155 @@ export default function Home() {
       const rc = readClient();
       const count = Number(await rc.readContract({ address: CONTRACT_ADDRESS, functionName: "get_debate_count", args: [] }));
       const out: Debate[] = [];
-      for (let i = 1; i <= count; i++) {
-        const raw = await rc.readContract({ address: CONTRACT_ADDRESS, functionName: "get_debate", args: [String(i)] });
-        out.push(JSON.parse(raw as string));
-      }
+      for (let i = 1; i <= count; i++) { const raw = await rc.readContract({ address: CONTRACT_ADDRESS, functionName: "get_debate", args: [String(i)] }); out.push(JSON.parse(raw as string)); }
       setDebates(out.reverse());
     } catch (e) { console.error(e); }
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  async function handleConnect() {
-    setTx("Connecting…");
-    try { const w = await connectWallet(); setWallet(w); setTx(`Connected · ${shortAddr(w.address!)}`); }
-    catch (e: any) { setTx(`⚠ ${e.message}`); }
-  }
-
+  async function handleConnect() { setTx("Connecting…"); try { const w = await connectWallet(); setWallet(w); setTx(""); } catch (e: any) { setTx(e.message); } }
   async function send(fn: string, args: any[], value?: bigint) {
-    if (!wallet.client) { setTx("⚠ Connect your wallet first"); return; }
+    if (!wallet.client) { setTx("Connect wallet first"); return; }
     setLoading(true); setTx(`${fn}…`);
     try {
       const hash = await wallet.client.writeContract({ address: CONTRACT_ADDRESS, functionName: fn, args, value: value ?? BigInt(0) });
       await wallet.client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED });
-      setTx("✓ Done!"); await load(); setSelected(null);
-    } catch (e: any) { setTx(`⚠ ${e.message}`); }
+      setTx(""); await load(); setSelected(null); setShowCreate(false);
+    } catch (e: any) { setTx(e.message); }
     setLoading(false);
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "radial-gradient(circle at 20% 20%,#2d1b4e 0%,#0d0717 55%)", color: "#f3e8ff" }}>
-      <div style={{ maxWidth: 880, margin: "0 auto", padding: "26px 20px 80px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h1 style={{ margin: 0, fontSize: 32, fontWeight: 900, fontStyle: "italic", background: "linear-gradient(90deg,#a855f7,#ec4899)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            DEBATE<span style={{ fontStyle: "normal" }}>·</span>STAKE
-          </h1>
-          {wallet.address ? (
-            <div style={{ ...pill, color: "#e9d5ff", border: "1px solid #a855f7", background: "#2d1b4e" }}>● {shortAddr(wallet.address)}</div>
-          ) : (
-            <button onClick={handleConnect} style={btn}>Connect Wallet</button>
-          )}
-        </div>
-        <p style={{ color: "#a78bba", marginTop: 4, fontSize: 13 }}>Pick a side. Stake. Argue. AI crowns the winner.</p>
-
-        {tx && <div style={statusBar}>{tx}</div>}
-
-        <div style={{ display: "flex", gap: 10, margin: "20px 0" }}>
-          <button onClick={() => { setTab("browse"); setSelected(null); }} style={tabBtn(tab === "browse")}>⚡ LIVE DEBATES</button>
-          <button onClick={() => { setTab("create"); setSelected(null); }} style={tabBtn(tab === "create")}>+ START ONE</button>
-        </div>
-
-        {tab === "create" && (
-          <form onSubmit={e => { e.preventDefault(); send("create_debate", [form.topic, form.position, Number(form.rounds)], BigInt(form.stake || "0") * BigInt(10 ** 18)); }} style={card}>
-            <label style={lbl}>TOPIC</label>
-            <input placeholder="AI will replace developers by 2030" value={form.topic} onChange={e => setForm({ ...form, topic: e.target.value })} required style={inp} />
-            <label style={lbl}>YOUR POSITION</label>
-            <input placeholder="For — AI will replace most dev jobs" value={form.position} onChange={e => setForm({ ...form, position: e.target.value })} required style={inp} />
-            <div style={{ display: "flex", gap: 12 }}>
-              <div style={{ flex: 1 }}><label style={lbl}>STAKE (GEN)</label><input type="number" min="1" value={form.stake} onChange={e => setForm({ ...form, stake: e.target.value })} required style={inp} /></div>
-              <div style={{ flex: 1 }}><label style={lbl}>ROUNDS (1-5)</label><input type="number" min="1" max="5" value={form.rounds} onChange={e => setForm({ ...form, rounds: e.target.value })} required style={inp} /></div>
-            </div>
-            <button type="submit" disabled={loading} style={{ ...btn, marginTop: 14, width: "100%" }}>🎤 OPEN THE FLOOR</button>
-          </form>
+    <div style={{ minHeight: "100vh", background: "#0a0a12", color: "#fff", fontFamily: "'Arial Black',system-ui,sans-serif" }}>
+      {/* Header with glowing toggle connect */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 28px", borderBottom: "1px solid #222" }}>
+        <span style={{ fontWeight: 900, fontSize: 20, fontStyle: "italic", letterSpacing: -1 }}>
+          <span style={{ color: "#3b82f6" }}>DEBATE</span><span style={{ color: "#fff" }}>/</span><span style={{ color: "#ef4444" }}>STAKE</span>
+        </span>
+        {wallet.address ? (
+          <span style={{ fontSize: 13, color: "#22c55e", fontFamily: "monospace" }}>◉ {shortAddr(wallet.address)}</span>
+        ) : (
+          <button onClick={handleConnect} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px 6px 16px", background: "#111", border: "1px solid #333", borderRadius: 999, color: "#fff", cursor: "pointer", fontFamily: "monospace", fontSize: 13 }}>
+            connect <span style={{ width: 30, height: 18, borderRadius: 999, background: "linear-gradient(90deg,#3b82f6,#ef4444)", display: "inline-block", position: "relative" }}><span style={{ position: "absolute", width: 14, height: 14, borderRadius: "50%", background: "#fff", top: 2, left: 2 }} /></span>
+          </button>
         )}
+      </div>
 
-        {tab === "browse" && !selected && (
-          <div style={{ display: "grid", gap: 12 }}>
-            {debates.length === 0 && <p style={{ color: "#6d5a85" }}>No debates yet. Start the first.</p>}
+      {tx && <p style={{ textAlign: "center", color: "#fbbf24", fontFamily: "monospace" }}>{tx}</p>}
+
+      {!selected && (
+        <div style={{ maxWidth: 1000, margin: "0 auto", padding: "30px 24px 80px" }}>
+          {/* Hero VS banner */}
+          <div style={{ textAlign: "center", padding: "30px 0 40px", position: "relative" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24 }}>
+              <span style={{ fontSize: 40, fontWeight: 900, color: "#3b82f6", fontStyle: "italic" }}>PRO</span>
+              <span style={{ fontSize: 56, fontWeight: 900, color: "#fff", textShadow: "0 0 30px rgba(255,255,255,0.3)" }}>VS</span>
+              <span style={{ fontSize: 40, fontWeight: 900, color: "#ef4444", fontStyle: "italic" }}>CON</span>
+            </div>
+            <p style={{ color: "#888", fontFamily: "monospace", marginTop: 10 }}>two sides · staked tokens · AI crowns the winner</p>
+            <button onClick={() => setShowCreate(true)} style={{ marginTop: 18, padding: "12px 28px", background: "linear-gradient(90deg,#3b82f6,#ef4444)", border: "none", borderRadius: 8, color: "#fff", fontWeight: 900, cursor: "pointer", fontSize: 15, letterSpacing: 1 }}>START A DEBATE</button>
+          </div>
+
+          {/* Debate cards as split bars */}
+          <div style={{ display: "grid", gap: 14 }}>
+            {debates.length === 0 && <p style={{ textAlign: "center", color: "#555", fontFamily: "monospace" }}>// no debates yet</p>}
             {debates.map(d => (
-              <div key={d.id} onClick={() => setSelected(d)} style={{ ...card, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 16 }}>{d.topic}</div>
-                  <div style={{ color: "#c084fc", fontSize: 13, marginTop: 4 }}>◈ {(Number(BigInt(d.creator_stake)) / 1e18).toFixed(0)} GEN · round {d.current_round}/{d.max_rounds}</div>
+              <div key={d.id} onClick={() => setSelected(d)} style={{ cursor: "pointer", borderRadius: 12, overflow: "hidden", border: "1px solid #222" }}>
+                <div style={{ display: "flex" }}>
+                  <div style={{ flex: 1, background: "linear-gradient(90deg,#1e3a8a,#0a0a12)", padding: "16px 18px" }}>
+                    <div style={{ fontSize: 11, color: "#60a5fa", fontFamily: "monospace" }}>PRO</div>
+                    <div style={{ fontSize: 13, color: "#cbd5e1", marginTop: 4 }}>{d.creator_position?.slice(0, 40) || "—"}</div>
+                  </div>
+                  <div style={{ flex: 1, background: "linear-gradient(90deg,#0a0a12,#7f1d1d)", padding: "16px 18px", textAlign: "right" }}>
+                    <div style={{ fontSize: 11, color: "#f87171", fontFamily: "monospace" }}>CON</div>
+                    <div style={{ fontSize: 13, color: "#cbd5e1", marginTop: 4 }}>{d.opponent_position?.slice(0, 40) || "awaiting challenger"}</div>
+                  </div>
                 </div>
-                <span style={{ ...pill, color: SCOLOR[d.status], border: `1px solid ${SCOLOR[d.status]}` }}>{STATUS[d.status]}</span>
+                <div style={{ background: "#111", padding: "10px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontWeight: 700, fontSize: 14 }}>{d.topic}</span>
+                  <span style={{ fontFamily: "monospace", fontSize: 12, color: "#888" }}>{STATUS[d.status]} · {(Number(BigInt(d.creator_stake)) / 1e18).toFixed(0)} GEN · R{d.current_round}/{d.max_rounds}</span>
+                </div>
               </div>
             ))}
           </div>
-        )}
+        </div>
+      )}
 
-        {tab === "browse" && selected && (
-          <div style={card}>
-            <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", color: "#c084fc", cursor: "pointer" }}>← back</button>
-            <h2 style={{ marginTop: 8 }}>{selected.topic}</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
-              <div style={{ background: selected.winner === selected.creator ? "#2a1a3e" : "#1a1228", border: `2px solid ${selected.winner === selected.creator ? "#22c55e" : "#a855f7"}`, padding: 14, borderRadius: 10 }}>
-                <strong style={{ color: "#c084fc" }}>🔵 PRO {selected.winner === selected.creator && "👑"}</strong>
-                <p style={{ fontSize: 12, color: "#a78bba" }}>{shortAddr(selected.creator)}</p>
-                <p style={{ fontStyle: "italic", fontSize: 13 }}>{selected.creator_position}</p>
-                <div style={{ color: "#22c55e", fontSize: 13 }}>{(Number(BigInt(selected.creator_stake)) / 1e18).toFixed(0)} GEN</div>
-              </div>
-              <div style={{ background: selected.winner === selected.opponent ? "#2a1a3e" : "#1a1228", border: `2px solid ${selected.winner === selected.opponent ? "#22c55e" : "#ec4899"}`, padding: 14, borderRadius: 10 }}>
-                <strong style={{ color: "#f472b6" }}>🔴 CON {selected.winner === selected.opponent && "👑"}</strong>
-                <p style={{ fontSize: 12, color: "#a78bba" }}>{selected.opponent ? shortAddr(selected.opponent) : "waiting…"}</p>
-                <p style={{ fontStyle: "italic", fontSize: 13 }}>{selected.opponent_position || "—"}</p>
-                <div style={{ color: "#ec4899", fontSize: 13 }}>{selected.opponent_stake !== "0" ? (Number(BigInt(selected.opponent_stake)) / 1e18).toFixed(0) + " GEN" : "—"}</div>
-              </div>
+      {/* Split-screen detail */}
+      {selected && (
+        <div style={{ maxWidth: 1000, margin: "0 auto", padding: "20px 24px 80px" }}>
+          <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontFamily: "monospace", marginBottom: 12 }}>← back to lobby</button>
+          <h2 style={{ textAlign: "center", fontSize: 24 }}>{selected.topic}</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 60px 1fr", alignItems: "stretch", gap: 0, marginTop: 16 }}>
+            {/* PRO side */}
+            <div style={{ background: "linear-gradient(180deg,#1e3a8a33,#0a0a12)", border: `2px solid ${selected.winner === selected.creator ? "#22c55e" : "#3b82f6"}`, borderRadius: "12px 0 0 12px", padding: 20 }}>
+              <div style={{ color: "#60a5fa", fontWeight: 900, fontSize: 18 }}>PRO {selected.winner === selected.creator && "👑"}</div>
+              <div style={{ fontFamily: "monospace", fontSize: 11, color: "#888" }}>{shortAddr(selected.creator)}</div>
+              <p style={{ fontSize: 14 }}>{selected.creator_position}</p>
+              <div style={{ color: "#3b82f6", fontFamily: "monospace" }}>{(Number(BigInt(selected.creator_stake)) / 1e18).toFixed(0)} GEN</div>
             </div>
-
-            {selected.arguments?.length > 0 && (
-              <div style={{ marginTop: 14 }}>
-                <h4 style={{ color: "#c084fc" }}>Arguments</h4>
-                {selected.arguments.map((a, i) => (
-                  <div key={i} style={{ background: "#1a1228", padding: 10, borderRadius: 8, marginBottom: 8, borderLeft: `3px solid ${a.author === selected.creator ? "#a855f7" : "#ec4899"}` }}>
-                    <small style={{ color: "#6d5a85" }}>Round {a.round} · {a.author === selected.creator ? "PRO" : "CON"}</small>
-                    <p style={{ margin: "4px 0 0", fontSize: 14 }}>{a.text}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {selected.judgment && <div style={{ marginTop: 14, background: "#2a1a3e", border: "1px solid #22c55e", padding: 14, borderRadius: 10 }}><strong style={{ color: "#22c55e" }}>⚖ VERDICT</strong><br />{JSON.parse(selected.judgment).reasoning}</div>}
-
-            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-              {selected.status === 0 && (
-                <>
-                  <input placeholder="Your opposing position…" value={joinPos} onChange={e => setJoinPos(e.target.value)} style={inp} />
-                  <button onClick={() => send("join_debate", [selected.id, joinPos], BigInt(selected.creator_stake))} disabled={loading || !joinPos} style={btn}>🔴 JOIN AS CON & MATCH STAKE</button>
-                </>
-              )}
-              {selected.status === 1 && (
-                <>
-                  <textarea placeholder="Your argument…" value={argument} onChange={e => setArgument(e.target.value)} rows={3} style={inp} />
-                  <button onClick={() => { send("submit_argument", [selected.id, argument]); setArgument(""); }} disabled={loading || !argument} style={btn}>SUBMIT ARGUMENT (round {selected.current_round + 1})</button>
-                </>
-              )}
-              {selected.status === 2 && <button onClick={() => send("judge_debate", [selected.id])} disabled={loading} style={{ ...btn, background: "linear-gradient(90deg,#f59e0b,#ec4899)" }}>⚖ TRIGGER AI JUDGMENT</button>}
+            <div style={{ display: "grid", placeItems: "center", background: "#0a0a12", fontWeight: 900, fontStyle: "italic", color: "#fff", fontSize: 20 }}>VS</div>
+            {/* CON side */}
+            <div style={{ background: "linear-gradient(180deg,#7f1d1d33,#0a0a12)", border: `2px solid ${selected.winner === selected.opponent ? "#22c55e" : "#ef4444"}`, borderRadius: "0 12px 12px 0", padding: 20, textAlign: "right" }}>
+              <div style={{ color: "#f87171", fontWeight: 900, fontSize: 18 }}>{selected.winner === selected.opponent && "👑 "}CON</div>
+              <div style={{ fontFamily: "monospace", fontSize: 11, color: "#888" }}>{selected.opponent ? shortAddr(selected.opponent) : "—"}</div>
+              <p style={{ fontSize: 14 }}>{selected.opponent_position || "awaiting challenger"}</p>
+              <div style={{ color: "#ef4444", fontFamily: "monospace" }}>{selected.opponent_stake !== "0" ? (Number(BigInt(selected.opponent_stake)) / 1e18).toFixed(0) + " GEN" : "—"}</div>
             </div>
           </div>
-        )}
 
-        <footer style={{ marginTop: 50, textAlign: "center", color: "#5a4775", fontSize: 12 }}>Judged by GenLayer AI consensus · {shortAddr(CONTRACT_ADDRESS)}</footer>
-      </div>
+          {/* arguments timeline center */}
+          {selected.arguments?.length > 0 && (
+            <div style={{ marginTop: 20 }}>
+              {selected.arguments.map((a, i) => {
+                const pro = a.author === selected.creator;
+                return (
+                  <div key={i} style={{ display: "flex", justifyContent: pro ? "flex-start" : "flex-end", marginBottom: 8 }}>
+                    <div style={{ maxWidth: "70%", background: pro ? "#1e3a8a44" : "#7f1d1d44", border: `1px solid ${pro ? "#3b82f6" : "#ef4444"}`, padding: 12, borderRadius: 10 }}>
+                      <div style={{ fontSize: 10, color: "#888", fontFamily: "monospace" }}>R{a.round} · {pro ? "PRO" : "CON"}</div>
+                      <div style={{ fontSize: 14, marginTop: 4, fontFamily: "system-ui" }}>{a.text}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {selected.judgment && <div style={{ marginTop: 16, textAlign: "center", background: "#052e16", border: "1px solid #22c55e", padding: 16, borderRadius: 12 }}><b style={{ color: "#22c55e" }}>⚖ VERDICT</b><br /><span style={{ fontFamily: "system-ui" }}>{JSON.parse(selected.judgment).reasoning}</span></div>}
+
+          <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10, maxWidth: 500, marginInline: "auto" }}>
+            {selected.status === 0 && (<>
+              <input placeholder="Your opposing position (CON)…" value={joinPos} onChange={e => setJoinPos(e.target.value)} style={inp} />
+              <button onClick={() => send("join_debate", [selected.id, joinPos], BigInt(selected.creator_stake))} disabled={loading || !joinPos} style={{ ...actBtn, background: "#ef4444" }}>JOIN AS CON & MATCH STAKE</button>
+            </>)}
+            {selected.status === 1 && (<>
+              <textarea placeholder="Your argument…" value={argument} onChange={e => setArgument(e.target.value)} rows={3} style={inp} />
+              <button onClick={() => { send("submit_argument", [selected.id, argument]); setArgument(""); }} disabled={loading || !argument} style={actBtn}>SUBMIT ARGUMENT (R{selected.current_round + 1})</button>
+            </>)}
+            {selected.status === 2 && <button onClick={() => send("judge_debate", [selected.id])} disabled={loading} style={{ ...actBtn, background: "linear-gradient(90deg,#f59e0b,#ef4444)" }}>⚖ TRIGGER AI JUDGMENT</button>}
+          </div>
+        </div>
+      )}
+
+      {/* create modal */}
+      {showCreate && (
+        <div onClick={() => setShowCreate(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "grid", placeItems: "center", padding: 20 }}>
+          <form onClick={e => e.stopPropagation()} onSubmit={e => { e.preventDefault(); send("create_debate", [form.topic, form.position, Number(form.rounds)], BigInt(form.stake || "0") * BigInt(10 ** 18)); }} style={{ background: "#111", border: "1px solid #333", borderRadius: 16, padding: 28, maxWidth: 480, width: "100%" }}>
+            <h2 style={{ marginTop: 0, textAlign: "center" }}>Open the Floor</h2>
+            <input placeholder="Debate topic" value={form.topic} onChange={e => setForm({ ...form, topic: e.target.value })} required style={inp} />
+            <input placeholder="Your position (PRO)" value={form.position} onChange={e => setForm({ ...form, position: e.target.value })} required style={inp} />
+            <div style={{ display: "flex", gap: 10 }}>
+              <input placeholder="Stake GEN" type="number" min="1" value={form.stake} onChange={e => setForm({ ...form, stake: e.target.value })} required style={inp} />
+              <input placeholder="Rounds" type="number" min="1" max="5" value={form.rounds} onChange={e => setForm({ ...form, rounds: e.target.value })} required style={inp} />
+            </div>
+            <button disabled={loading} style={{ ...actBtn, background: "linear-gradient(90deg,#3b82f6,#ef4444)" }}>🎤 OPEN THE FLOOR</button>
+          </form>
+        </div>
+      )}
+      <style>{`body{margin:0}`}</style>
     </div>
   );
 }
 
-const card: React.CSSProperties = { background: "rgba(26,18,40,0.8)", border: "1px solid #3d2a5c", borderRadius: 14, padding: 20 };
-const inp: React.CSSProperties = { padding: 11, borderRadius: 10, border: "1px solid #3d2a5c", background: "#0d0717", color: "#f3e8ff", fontSize: 14, width: "100%", boxSizing: "border-box", marginBottom: 4 };
-const lbl: React.CSSProperties = { fontSize: 11, color: "#a78bba", fontWeight: 700, marginTop: 12, display: "block", letterSpacing: 1 };
-const btn: React.CSSProperties = { padding: "12px 22px", borderRadius: 10, border: "none", background: "linear-gradient(90deg,#a855f7,#ec4899)", color: "#fff", fontSize: 14, cursor: "pointer", fontWeight: 800 };
-const pill: React.CSSProperties = { padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700 };
-const statusBar: React.CSSProperties = { background: "rgba(168,85,247,0.1)", border: "1px solid #a855f744", padding: 12, borderRadius: 10, fontSize: 13, color: "#e9d5ff", marginTop: 16 };
-const tabBtn = (a: boolean): React.CSSProperties => ({ padding: "10px 18px", background: a ? "linear-gradient(90deg,#a855f7,#ec4899)" : "transparent", border: a ? "none" : "1px solid #3d2a5c", borderRadius: 10, color: a ? "#fff" : "#a78bba", cursor: "pointer", fontWeight: 700 });
+const inp: React.CSSProperties = { padding: 12, borderRadius: 8, border: "1px solid #333", background: "#0a0a12", color: "#fff", fontSize: 14, width: "100%", boxSizing: "border-box", marginBottom: 10, fontFamily: "system-ui" };
+const actBtn: React.CSSProperties = { padding: "12px 20px", borderRadius: 8, border: "none", background: "#3b82f6", color: "#fff", fontSize: 14, cursor: "pointer", fontWeight: 900, letterSpacing: 0.5 };
