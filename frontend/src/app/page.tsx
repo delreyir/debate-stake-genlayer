@@ -75,6 +75,20 @@ export default function Home() {
             <button onClick={() => setShowCreate(true)} style={{ marginTop: 18, padding: "12px 28px", background: "linear-gradient(90deg,#3b82f6,#ef4444)", border: "none", borderRadius: 8, color: "#fff", fontWeight: 900, cursor: "pointer", fontSize: 15, letterSpacing: 1 }}>START A DEBATE</button>
           </div>
 
+          {/* About + how it works */}
+          <div style={{ background: "rgba(168,85,247,0.08)", border: "1px solid #3d2a5c", borderRadius: 14, padding: "20px 22px", marginBottom: 18 }}>
+            <div style={{ fontWeight: 900, fontStyle: "italic", fontSize: 18, color: "#e9d5ff" }}>What is DebateStake?</div>
+            <p style={{ color: "#a78bba", fontSize: 14, lineHeight: 1.6, margin: "8px 0 14px" }}>A debate arena where conviction costs tokens. One side argues PRO, the other CON, both stake GEN. After a few rounds of arguments, GenLayer's AI validators judge who made the stronger case — and the winner takes the whole pool.</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
+              {[["1", "Connect your wallet"], ["2", "Start a debate (PRO) or join one (CON) — stake GEN"], ["3", "Both sides post arguments over the rounds"], ["4", "AI judges · winner takes the pool"]].map(([n, t]) => (
+                <div key={n} style={{ background: "#1a1228", border: "1px solid #3d2a5c", borderRadius: 10, padding: "10px 12px" }}>
+                  <span style={{ color: "#c084fc", fontWeight: 900, fontStyle: "italic" }}>0{n}</span>
+                  <div style={{ color: "#cbb8dd", fontSize: 13, marginTop: 4 }}>{t}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Debate cards as split bars */}
           <div style={{ display: "grid", gap: 14 }}>
             {debates.length === 0 && <p style={{ textAlign: "center", color: "#555", fontFamily: "monospace" }}>// no debates yet</p>}
