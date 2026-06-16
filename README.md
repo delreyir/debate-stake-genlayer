@@ -9,7 +9,7 @@
 
 ## The Problem
 
-Online debates go nowhere — no stakes, no resolution, just endless replies and whoever shouts loudest "wins." There's no neutral way to decide who actually made the stronger argument.
+Online debates go nowhere no stakes, no resolution, just endless replies and whoever shouts loudest "wins." There's no neutral way to decide who actually made the stronger argument.
 
 DebateStake turns debate into a game with skin in it: two sides stake tokens, argue over several rounds, and GenLayer's AI validators judge who built the better case. Winner takes the pool.
 
@@ -17,8 +17,8 @@ DebateStake turns debate into a game with skin in it: two sides stake tokens, ar
 
 ## How It Works
 
-1. **Connect your wallet** (MetaMask, Rabby, or any EVM wallet — no Snap required)
-2. **Start a debate** (the PRO side) — set a topic, your position, stake, and number of rounds. Or **join** an open one as the CON side and match the stake.
+1. **Connect your wallet** (MetaMask, Rabby, or any EVM wallet )
+2. **Start a debate** (the PRO side) set a topic, your position, stake, and number of rounds. Or **join** an open one as the CON side and match the stake.
 3. **Both sides post arguments**, taking turns across the rounds.
 4. **AI judges** — validators score both sides on logic, evidence, addressing counter-arguments, and persuasiveness. The winner takes the combined pool.
 
@@ -26,13 +26,13 @@ DebateStake turns debate into a game with skin in it: two sides stake tokens, ar
 
 ## Why GenLayer?
 
-Deciding who argued better is purely subjective — impossible for a normal smart contract. GenLayer validators each read the full debate and judge independently; the **winner** must match and the scores must agree within a tolerance before payout, so the verdict is neutral and not gameable by one party.
+Deciding who argued better is purely subjective impossible for a normal smart contract. GenLayer validators each read the full debate and judge independently; the **winner** must match and the scores must agree within a tolerance before payout, so the verdict is neutral and not gameable by one party.
 
 ---
 
 ## Wallet & Network
 
-Standard EVM wallet, normal signing popup — **no GenLayer Snap**. On connect it adds/switches to the **GenLayer Studio Network** (chain `61999`, RPC `https://studio.genlayer.com/api`).
+Standard EVM wallet, normal signing popup **no GenLayer Snap**. On connect it adds/switches to the **GenLayer Studio Network** (chain `61999`, RPC `https://studio.genlayer.com/api`).
 
 ---
 
