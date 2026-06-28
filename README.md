@@ -3,7 +3,6 @@
 **Pick a side. Stake. Argue. AI crowns the winner.**
 
 🔗 **Live app:** https://debatestake.pages.dev
-📜 **Contract (GenLayer Studionet):** `0x79435f6C549f67eb5e3B8d93b8089Df4239CF6A9`
 
 ---
 
