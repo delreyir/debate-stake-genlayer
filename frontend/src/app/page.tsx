@@ -38,7 +38,9 @@ export default function Home() {
     setLoading(true); setTx(`${fn}…`);
     try {
       const hash = await wallet.client.writeContract({ address: CONTRACT_ADDRESS, functionName: fn, args, value: value ?? BigInt(0) });
-      await wallet.client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED });
+      const _rcpt: any = await wallet.client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED, retries: 30, interval: 5000 });
+      const _st = String((_rcpt && (_rcpt.statusName ?? _rcpt.status)) || "").toUpperCase();
+      if (_st && _st !== "ACCEPTED" && _st !== "FINALIZED") throw new Error(/UNDETERMINED|TIMEOUT|NO_MAJORITY|DISAGREE/.test(_st) ? "AI validators could not reach consensus — no funds were moved. Please try again." : ("Transaction did not complete (" + _st + ")."));
       setTx(""); await load(); setSelected(null); setShowCreate(false);
     } catch (e: any) { setTx(e.message); }
     setLoading(false);

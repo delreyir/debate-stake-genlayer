@@ -127,20 +127,44 @@ Return JSON:
     "score_opponent": 1-10,
     "reasoning": "brief explanation of why the winner had stronger arguments"
 }}"""
-            response = gl.nondet.exec_prompt(prompt)
-            return json.loads(response)
+            raw = gl.nondet.exec_prompt(prompt, response_format="json")
+            if not isinstance(raw, dict):
+                raw = {}
+            winner = str(raw.get("winner", "creator")).strip().lower()
+            if winner not in ("creator", "opponent"):
+                winner = "creator"
+            try:
+                sc = max(1, min(10, int(raw.get("score_creator", 5))))
+            except (TypeError, ValueError):
+                sc = 5
+            try:
+                so = max(1, min(10, int(raw.get("score_opponent", 5))))
+            except (TypeError, ValueError):
+                so = 5
+            return {
+                "winner": winner,
+                "score_creator": sc,
+                "score_opponent": so,
+                "reasoning": str(raw.get("reasoning", ""))[:1000],
+            }
 
         def validator_fn(leader_result) -> bool:
+            # Robust consensus: agree on the normalized winner only.
             if not isinstance(leader_result, gl.vm.Return):
                 return False
-            validator_data = leader_fn()
-            leader_data = leader_result.calldata
-            if leader_data["winner"] != validator_data["winner"]:
+            raw = gl.nondet.exec_prompt(prompt, response_format="json")
+            if not isinstance(raw, dict):
+                raw = {}
+            winner = str(raw.get("winner", "creator")).strip().lower()
+            if winner not in ("creator", "opponent"):
+                winner = "creator"
+            try:
+                leader_winner = str(leader_result.calldata["winner"]).strip().lower()
+            except (TypeError, KeyError):
                 return False
-            return (abs(leader_data["score_creator"] - validator_data["score_creator"]) <= 2
-                    and abs(leader_data["score_opponent"] - validator_data["score_opponent"]) <= 2)
+            return winner == leader_winner
 
-        result = gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
+        result = gl.vm.run_nondet(leader_fn, validator_fn)
 
         # Distribute prize
         total = u256(int(debate["creator_stake"]) + int(debate["opponent_stake"]))
